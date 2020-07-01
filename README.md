@@ -51,6 +51,8 @@ assert_eq "hello" "world"
 * `assert_ge` checks whether the first param is greator than or equal to the second one.
 * `assert_lt` checks whether the first param is less than the second one.
 * `assert_le` checks whether the first param is less than or equal to the second one.
+* `assert_file_exist` checks whether the first param is an existing regular file.
+* `assert_file_not_exist` checks whether the first param is not an existing regular file.
 
 ### How to write tests
 
@@ -84,6 +86,54 @@ fi
 If the return status (`$?`) of `assert_eq` is equal to `0`, which is considered true according to the convention.
 If the assert function returns `1`, the expected and actual values are differred.
 
+### Integration tests
 
+This is a mini script used to run multiple tests at once and aggregate the information into 
+and easy to read format. For more information about script run `./integration_tests.sh help`.
 
+You write tests in the same format described above, however for your tests to be part of the
+integrated tests each test method must be in the format:
+```bash
+# test_topic.sh
 
+test_some_thing() {
+    local expected actual
+    expected="enabled"
+    actual=$( Some command 2>&1 )
+    assert_contain "$actual" "$expected" "Error! Did not get '${expected}'."
+}
+```
+- The test file name mush begin with the `test_` prefix e.g. `test_topic`
+- The test method must begin with the `test_` prefix e.g. `test_some_thing`
+- The method header must be in the same format shown above; spaces included e.g. `test_some_thing() {`
+
+Lastly, the test file name must be mentioned at the top of the `./integration_tests` file, like so...
+
+```bash
+#!/usr/bin/env bash
+
+source test_cron.sh
+source test_file_perms.sh
+source test_topic.sh
+
+declare -a TEST_FILES=()
+declare -a INDIVIDUAL_TESTS=()
+
+WAITFORIT_cmdname=${0##*/}
+...
+```
+
+### Development
+
+- `_setup_docker_env.sh` is a small script used to mimic the desired environment and ensure the
+tests were correctly identifying the desired configurations.  
+- This script was modified to test puppet nodes and ensure the machines were correctly
+configured. 
+- Do **NOT** run script on dev. Run within a docker container to preserve
+your dev machines environment configurations. E.g. 
+```bash
+docker run -itv "$(pwd):/ci" IMAGE bash
+cd ~/../assert.sh
+./_setup_docker_env.sh
+./integration_tests.sh
+```
