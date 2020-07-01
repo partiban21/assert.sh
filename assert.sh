@@ -22,12 +22,14 @@
 if command -v tput &>/dev/null && tty -s; then
   RED=$(tput setaf 1)
   GREEN=$(tput setaf 2)
+  YELLOW=$(tput setaf 3)
   MAGENTA=$(tput setaf 5)
   NORMAL=$(tput sgr0)
   BOLD=$(tput bold)
 else
   RED=$(echo -en "\e[31m")
   GREEN=$(echo -en "\e[32m")
+  YELLOW=$(echo -en "\e[33m")
   MAGENTA=$(echo -en "\e[35m")
   NORMAL=$(echo -en "\e[00m")
   BOLD=$(echo -en "\e[01m")
@@ -45,6 +47,10 @@ log_failure() {
   printf "${RED}✖ %s${NORMAL}\n" "$@" >&2
 }
 
+log_skip() {
+  printf "${YELLOW}✔ %s${NORMAL}\n" "$@" >&2
+}
+
 
 assert_eq() {
   local expected="$1"
@@ -58,7 +64,7 @@ assert_eq() {
   if [ "$expected" == "$actual" ]; then
     return 0
   else
-    [ "${#msg}" -gt 0 ] && log_failure "$expected == $actual :: $msg" || true
+    [ "${#msg}" -gt 0 ] && log_failure "'$expected' == '$actual' :: $msg" || true
     return 1
   fi
 }
@@ -214,10 +220,16 @@ assert_contain() {
     return 0;
   fi
 
+  if [ -z "${haystack:+x}" ] && [ ! -z "${needle:+x}" ]; then
+    [ "${#msg}" -gt 0 ] && log_failure "'$haystack' doesn't contain '$needle' :: $msg" || true
+    return 1;
+  fi
+
+
   if [ -z "${haystack##*$needle*}" ]; then
     return 0
   else
-    [ "${#msg}" -gt 0 ] && log_failure "$haystack doesn't contain $needle :: $msg" || true
+    [ "${#msg}" -gt 0 ] && log_failure "'$haystack' doesn't contain '$needle' :: $msg" || true
     return 1
   fi
 }
@@ -232,6 +244,10 @@ assert_not_contain() {
   fi
 
   if [ -z "${needle:+x}" ]; then
+    return 0;
+  fi
+
+  if [ -z "${haystack:+x}" ] && [ ! -z "${needle:+x}" ]; then
     return 0;
   fi
 
@@ -310,3 +326,36 @@ assert_le() {
     return 1
   fi
 }
+
+assert_file_exist() {
+    local first="$1"
+    local msg
+
+    if [ "$#" -ge 2 ]; then
+        msg="$2"
+    fi
+
+    if [[ -f  "$first" ]]; then
+      return 0
+    else
+      [ "${#msg}" -gt 0 ] && log_failure "$first ! exist :: $msg" || true
+      return 1
+    fi
+}
+
+assert_file_not_exist() {
+    local first="$1"
+    local msg
+
+    if [ "$#" -ge 2 ]; then
+        msg="$2"
+    fi
+
+    if [[ ! -f  "$first" ]]; then
+      return 0
+    else
+      [ "${#msg}" -gt 0 ] && log_failure "$first exists :: $msg" || true
+      return 1
+    fi
+}
+
